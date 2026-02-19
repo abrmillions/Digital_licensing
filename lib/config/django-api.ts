@@ -4,7 +4,7 @@
  */
 
 export const DJANGO_API_URL =
-  process.env.NEXT_PUBLIC_DJANGO_API_URL || "http://localhost:8000";
+  process.env.NEXT_PUBLIC_DJANGO_API_URL || "https://backend-te21.onrender.com";
 // Toggle whether the frontend should rewrite backend absolute URLs to same-origin proxy paths.
 // Set NEXT_PUBLIC_USE_PROXY=1 in environment to enable proxy rewriting.
 export const NEXT_PUBLIC_USE_PROXY =
