@@ -1,0 +1,10 @@
+.DS_Store
+.git
+.gitignore
+.env.local
+.env.*.local
+backend/
+docker-compose.yml
+*.log
+node_modules/
+.next/
