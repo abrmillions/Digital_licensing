@@ -25,7 +25,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
- 
+
+# Do not track Django backend in frontend-only repo
+backend/
 # python artifacts
 __pycache__/
 *.pyc
