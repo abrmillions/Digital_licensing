@@ -86,13 +86,15 @@ export default function UsersManagement() {
         name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username,
         email: u.email,
         phone: u.phone || "N/A",
-        role: (u.role && (["admin","reviewer","applicant"].includes(String(u.role).toLowerCase()))) 
-              ? String(u.role).toLowerCase() 
-              : (u.is_staff ? "admin" : "applicant"),
-        status: u.is_active ? "active" : "suspended",
+        role: (
+          (u.role && (["admin","reviewer","applicant"].includes(String(u.role).toLowerCase())))
+            ? String(u.role).toLowerCase()
+            : (u.is_staff ? "admin" : "applicant")
+        ) as "admin" | "reviewer" | "applicant",
+        status: (u.is_active ? "active" : "suspended") as "active" | "suspended" | "pending",
         joinedDate: u.date_joined ? u.date_joined.split("T")[0] : "N/A",
         licensesCount: u.licenses_count || 0,
-      })).filter((u: User) => !!u.id && u.id !== 'undefined')
+      })).filter((u) => !!u.id && u.id !== 'undefined')
       setUsers(mappedUsers)
     } catch (error: any) {
       // Handle 403 specifically

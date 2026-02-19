@@ -1,5 +1,5 @@
  "use client"
- import { useEffect, useState, useRef } from "react"
+ import { useEffect, useState, useRef, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -178,8 +178,9 @@ import { useToast } from "@/hooks/use-toast"
     }
   }
 
-   return (
-     <div className="container mx-auto px-4 py-8 max-w-3xl">
+  return (
+    <Suspense fallback={<div className="container mx-auto px-4 py-8 max-w-3xl">Loading...</div>}>
+    <div className="container mx-auto px-4 py-8 max-w-3xl">
        <Card className="mb-6">
         <CardHeader>
           <CardTitle>Verify Partnership</CardTitle>
@@ -416,6 +417,7 @@ import { useToast } from "@/hooks/use-toast"
           </CardContent>
         </Card>
       )}
-     </div>
+    </div>
+    </Suspense>
    )
  }
