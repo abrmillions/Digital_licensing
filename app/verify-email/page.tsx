@@ -1,6 +1,7 @@
  "use client";
+ export const dynamic = 'force-dynamic';
  
- import { useEffect, useState } from "react";
+ import { useEffect, useState, Suspense } from "react";
  import { useRouter, useSearchParams } from "next/navigation";
  import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
  import { Button } from "@/components/ui/button";
@@ -9,19 +10,34 @@
  import { useAuth } from "@/lib/auth/auth-context";
  import { Loader2, MailCheck, AlertCircle } from "lucide-react";
  
- export default function VerifyEmailPage() {
-   const router = useRouter();
-   const searchParams = useSearchParams();
+function QueryReader({ onParams }: { onParams: (uid: string | null, token: string | null) => void }) {
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const uid = searchParams.get("uid");
+    const token = searchParams.get("token");
+    onParams(uid, token);
+  }, [searchParams]);
+  return null;
+}
+
+export default function VerifyEmailPage() {
+  const router = useRouter();
    const { isAuthenticated } = useAuth();
  
    const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
    const [message, setMessage] = useState<string>("");
  
-   useEffect(() => {
-     const uid = searchParams.get("uid");
-     const token = searchParams.get("token");
+  useEffect(() => {
+    // handled via QueryReader
+  }, []);
  
-     if (!uid || !token) {
+  const [uidState, setUidState] = useState<string | null>(null);
+  const [tokenState, setTokenState] = useState<string | null>(null);
+ 
+  useEffect(() => {
+    const uid = uidState;
+    const token = tokenState;
+    if (!uid || !token) {
        setStatus("error");
        setMessage("Invalid verification link. Missing uid or token.");
        return;
@@ -45,8 +61,7 @@
      };
  
      void run();
-     // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [searchParams]);
+   }, [uidState, tokenState]);
  
    const goNext = () => {
      if (isAuthenticated) {
@@ -58,6 +73,9 @@
  
    return (
      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <Suspense fallback={<div>Loading...</div>}>
+        <QueryReader onParams={(u, t) => { setUidState(u); setTokenState(t); }} />
+      </Suspense>
        <Card className="w-full max-w-md">
          <CardHeader>
            <CardTitle className="flex items-center gap-2">

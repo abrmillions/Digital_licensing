@@ -1,4 +1,5 @@
  "use client"
+ export const dynamic = 'force-dynamic'
  import { useEffect, useState, useRef, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
@@ -6,7 +7,8 @@ import { Badge } from "@/components/ui/badge"
  import { Input } from "@/components/ui/input"
  import { Button } from "@/components/ui/button"
 import { Copy, Printer, Share2, CheckCircle2, XCircle } from "lucide-react"
- import QRScanner from "@/components/qr-scanner"
+ import NextDynamic from "next/dynamic"
+ const QRScanner = NextDynamic(() => import("@/components/qr-scanner"), { ssr: false })
  import { partnershipsApi } from "@/lib/api/django-client"
  import { DJANGO_API_URL } from "@/lib/config/django-api"
 import { generatePartnershipPDF } from "@/lib/downloads/pdf-generator"
@@ -14,14 +16,22 @@ import { downloadPDF } from "@/lib/downloads/file-download"
 import { copyToClipboard, printPage, shareLink } from "@/lib/button-actions"
 import { useToast } from "@/hooks/use-toast"
  
- export default function PartnershipPublicVerifyPage() {
+function QueryReader({ onFound }: { onFound: (value: string) => void }) {
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    const qp = (searchParams.get('id') || searchParams.get('q') || '').trim()
+    if (qp) onFound(qp)
+  }, [searchParams])
+  return null
+}
+
+export default function PartnershipPublicVerifyPage() {
   const [id, setId] = useState("")
    const [result, setResult] = useState<any>(null)
    const [error, setError] = useState<string | null>(null)
    const [loading, setLoading] = useState(false)
    const [showScanner, setShowScanner] = useState(false)
    const [detail, setDetail] = useState<any>(null)
-  const searchParams = useSearchParams()
   const autoVerified = useRef(false)
   const { toast } = useToast()
   const [hasVerified, setHasVerified] = useState(false)
@@ -109,13 +119,7 @@ import { useToast } from "@/hooks/use-toast"
     }
   }, [])
 
-  useEffect(() => {
-    const qp = (searchParams.get('id') || searchParams.get('q') || '').trim()
-    if (qp) {
-      setId(qp)
-      setShowScanner(false)
-    }
-  }, [searchParams])
+ 
 
   useEffect(() => {
     if (id && !autoVerified.current) {
@@ -179,8 +183,10 @@ import { useToast } from "@/hooks/use-toast"
   }
 
   return (
-    <Suspense fallback={<div className="container mx-auto px-4 py-8 max-w-3xl">Loading...</div>}>
     <div className="container mx-auto px-4 py-8 max-w-3xl">
+      <Suspense fallback={<div>Loading...</div>}>
+        <QueryReader onFound={(qp) => { setId(qp); setShowScanner(false) }} />
+      </Suspense>
        <Card className="mb-6">
         <CardHeader>
           <CardTitle>Verify Partnership</CardTitle>
@@ -418,6 +424,5 @@ import { useToast } from "@/hooks/use-toast"
         </Card>
       )}
     </div>
-    </Suspense>
    )
  }

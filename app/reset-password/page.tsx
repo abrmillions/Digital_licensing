@@ -1,14 +1,24 @@
 "use client"
+export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { DJANGO_API_URL } from "@/lib/config/django-api"
 
-export default function ResetPasswordPage() {
+function QueryReader({ onFound }: { onFound: (uid: string | null, token: string | null) => void }) {
   const searchParams = useSearchParams()
+  useEffect(() => {
+    const u = searchParams.get('uid')
+    const t = searchParams.get('token')
+    onFound(u, t)
+  }, [searchParams])
+  return null
+}
+
+export default function ResetPasswordPage() {
   const router = useRouter()
   const [uid, setUid] = useState<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
@@ -17,12 +27,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
-  useEffect(() => {
-    const u = searchParams.get('uid')
-    const t = searchParams.get('token')
-    setUid(u)
-    setToken(t)
-  }, [searchParams])
+ 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,6 +54,9 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
+      <Suspense fallback={<div>Loading...</div>}>
+        <QueryReader onFound={(u, t) => { setUid(u); setToken(t) }} />
+      </Suspense>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Reset Password</CardTitle>
