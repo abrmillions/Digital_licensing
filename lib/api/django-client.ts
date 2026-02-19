@@ -19,11 +19,18 @@ export const authApi = {
       // include both common variations for confirm password
       password_confirm: data.password_confirm || data.confirmPassword || data.password_confirm || data.passwordConfirm,
       confirmPassword: data.confirmPassword || data.password_confirm || data.passwordConfirm || data.password_confirm,
-      // include both name variations
-      first_name: data.first_name || data.firstName || data.fullName || data.fullname,
-      fullName: data.fullName || data.first_name || data.firstName || data.fullname,
+      // include both name variations, and derive last_name from fullName when available
+      first_name: data.first_name || data.firstName || (data.fullName || data.fullname || '').split(' ')[0] || '',
+      last_name:
+        data.last_name ||
+        data.lastName ||
+        (() => {
+          const name = (data.fullName || data.fullname || '').trim()
+          const parts = name.split(' ')
+          if (parts.length > 1) return parts.slice(1).join(' ')
+          return ''
+        })(),
       phone: data.phone,
-      role: data.role || data.accountType || data.type || 'applicant',
     }
 
     try {
