@@ -35,8 +35,7 @@ export const authApi = {
       })
 
       try {
-        const loginEndpoint = typeof window !== 'undefined' ? '/api/users/token/' : DJANGO_ENDPOINTS.auth.login
-        const tokens = await djangoApiRequest<{ access: string; refresh: string }>(loginEndpoint, {
+        const tokens = await djangoApiRequest<{ access: string; refresh: string }>(DJANGO_ENDPOINTS.auth.login, {
           method: 'POST',
           body: JSON.stringify({ email: data.email, password: data.password }),
           skipAuth: true,
@@ -68,8 +67,7 @@ export const authApi = {
       const dupEmail = !!(err?.error && (JSON.stringify(err.error).toLowerCase().includes('already exists')))
       if (dupEmail) {
         try {
-          const loginEndpoint = typeof window !== 'undefined' ? '/api/users/token/' : DJANGO_ENDPOINTS.auth.login
-          const tokens = await djangoApiRequest<{ access: string; refresh: string }>(loginEndpoint, {
+          const tokens = await djangoApiRequest<{ access: string; refresh: string }>(DJANGO_ENDPOINTS.auth.login, {
             method: 'POST',
             body: JSON.stringify({ email: data.email, password: data.password }),
             skipAuth: true,
@@ -107,9 +105,8 @@ export const authApi = {
   },
 
   login: async (email: string, password: string) => {
-    const loginEndpoint = typeof window !== 'undefined' ? '/api/users/token/' : DJANGO_ENDPOINTS.auth.login
     const response = await djangoApiRequest<{ access: string; refresh: string }>(
-      loginEndpoint,
+      DJANGO_ENDPOINTS.auth.login,
       {
         method: 'POST',
         body: JSON.stringify({ email, password }),
