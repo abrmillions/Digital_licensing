@@ -44,7 +44,7 @@ export const authApi = {
       try {
         const tokens = await djangoApiRequest<{ access: string; refresh: string }>(DJANGO_ENDPOINTS.auth.login, {
           method: 'POST',
-          body: JSON.stringify({ email: data.email, password: data.password }),
+          body: JSON.stringify({ username: data.email, password: data.password }),
           skipAuth: true,
           suppressLog: true,
         })
@@ -76,7 +76,7 @@ export const authApi = {
         try {
           const tokens = await djangoApiRequest<{ access: string; refresh: string }>(DJANGO_ENDPOINTS.auth.login, {
             method: 'POST',
-            body: JSON.stringify({ email: data.email, password: data.password }),
+            body: JSON.stringify({ username: data.email, password: data.password }),
             skipAuth: true,
             suppressLog: true,
           })
@@ -116,7 +116,7 @@ export const authApi = {
       DJANGO_ENDPOINTS.auth.login,
       {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username: email, password }),
         skipAuth: true,
       },
     )
