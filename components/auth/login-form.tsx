@@ -32,6 +32,16 @@ export function LoginForm() {
       console.log("[v0] Login successful")
       // Immediately navigate; do not wait for any background requests
       router.push("/dashboard")
+      // Ensure the loading state clears even if navigation is slow
+      setIsLoading(false)
+      // Hard-navigation fallback if the router transition is interrupted
+      setTimeout(() => {
+        try {
+          if (typeof window !== "undefined" && window.location.pathname !== "/dashboard") {
+            window.location.assign("/dashboard")
+          }
+        } catch {}
+      }, 400)
     } catch (err: any) {
       let errorMessage = "Login failed"
 
