@@ -35,15 +35,20 @@ export const authApi = {
       })
 
       try {
-        const loginEndpoint = (typeof window !== 'undefined' && NEXT_PUBLIC_USE_PROXY)
-          ? '/api/users/token/'
-          : DJANGO_ENDPOINTS.auth.login
-        const tokens = await djangoApiRequest<{ access: string; refresh: string }>(loginEndpoint, {
+        // Use form-encoded to maximize compatibility
+        const formBody = new URLSearchParams({ email: data.email, password: data.password }).toString()
+        const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
           method: 'POST',
-          body: JSON.stringify({ email: data.email, password: data.password }),
-          skipAuth: true,
-          suppressLog: true,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json',
+          },
+          body: formBody,
         })
+        if (!direct.ok) {
+          throw new Error(`Login after register failed with ${direct.status}`)
+        }
+        const tokens = await direct.json()
         setTokens(tokens)
         try {
           const u = await djangoApiRequest(DJANGO_ENDPOINTS.auth.me)
@@ -70,15 +75,19 @@ export const authApi = {
       const dupEmail = !!(err?.error && (JSON.stringify(err.error).toLowerCase().includes('already exists')))
       if (dupEmail) {
         try {
-          const loginEndpoint = (typeof window !== 'undefined' && NEXT_PUBLIC_USE_PROXY)
-            ? '/api/users/token/'
-            : DJANGO_ENDPOINTS.auth.login
-          const tokens = await djangoApiRequest<{ access: string; refresh: string }>(loginEndpoint, {
+          const formBody = new URLSearchParams({ email: data.email, password: data.password }).toString()
+          const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
             method: 'POST',
-            body: JSON.stringify({ email: data.email, password: data.password }),
-            skipAuth: true,
-            suppressLog: true,
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Accept': 'application/json',
+            },
+            body: formBody,
           })
+          if (!direct.ok) {
+            throw new Error(`Login after duplicate register failed with ${direct.status}`)
+          }
+          const tokens = await direct.json()
           setTokens(tokens)
           try {
             const u = await djangoApiRequest(DJANGO_ENDPOINTS.auth.me)
@@ -111,31 +120,35 @@ export const authApi = {
   },
 
   login: async (email: string, password: string) => {
-    // Try direct backend first for reliability; if it fails for format/route reasons, fall back to proxy
+    // Prefer form-encoded for maximum compatibility with diverse deployments
     let response: { access: string; refresh: string }
-    const payload = JSON.stringify({ email, password })
     try {
-      response = await djangoApiRequest<{ access: string; refresh: string }>(
-        DJANGO_ENDPOINTS.auth.login,
-        {
-          method: 'POST',
-          body: payload,
-          skipAuth: true,
+      const formBody = new URLSearchParams({ email, password }).toString()
+      const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
         },
-      )
+        body: formBody,
+      })
+      if (!direct.ok) {
+        const data = await direct.text().catch(() => '')
+        const err: any = new Error(`API Error: ${direct.status} ${direct.statusText}`)
+        err.status = direct.status
+        err.error = { detail: data || 'Login failed' }
+        throw err
+      }
+      response = await direct.json()
     } catch (e: any) {
       const status = e?.status || 0
       const bodyStr = (e?.error && JSON.stringify(e.error)) || ''
       const shouldFallback =
         (typeof window !== 'undefined') &&
-        (
-          status === 404 ||
-          status === 405 ||
-          status === 415 ||
-          (status === 400 && /required/i.test(bodyStr || ''))
-        )
+        (status === 404 || status === 405 || status === 415 || status === 400)
       if (shouldFallback) {
-        // 1) Try same-origin proxy with JSON
+        // Fallback 1: same-origin proxy with JSON
+        const payload = JSON.stringify({ email, password })
         try {
           response = await djangoApiRequest<{ access: string; refresh: string }>(
             '/api/users/token/',
@@ -146,16 +159,15 @@ export const authApi = {
             },
           )
         } catch (e2: any) {
-          // 2) Try form-encoded directly to backend as last resort
+          // Fallback 2: direct JSON
           try {
-            const formBody = new URLSearchParams({ email, password }).toString()
             const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
               method: 'POST',
               headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
                 'Accept': 'application/json',
               },
-              body: formBody,
+              body: payload,
             })
             if (!direct.ok) {
               const data = await direct.text().catch(() => '')
@@ -164,8 +176,7 @@ export const authApi = {
               err.error = { detail: data || 'Login failed' }
               throw err
             }
-            const data = await direct.json()
-            response = data
+            response = await direct.json()
           } catch (e3) {
             throw e3
           }
