@@ -113,8 +113,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(mappedUser)
       if (typeof window !== "undefined") localStorage.setItem("clms_user", JSON.stringify(mappedUser))
     } catch (error) {
-      console.error("[v0] Failed to fetch user after login:", error)
-      throw error
+      // Do not block navigation if /me fails. Tokens are stored, so the session can be restored later.
+      console.warn("[v0] Proceeding without /me after login due to error:", error)
+      // Best-effort: set a minimal user object so UI can proceed; background fetch will refine it later.
+      const minimalUser: User = { id: '', email }
+      setUser(minimalUser)
+      if (typeof window !== "undefined") localStorage.setItem("clms_user", JSON.stringify(minimalUser))
     }
   }
 
