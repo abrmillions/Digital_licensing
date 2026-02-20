@@ -4,7 +4,7 @@
  * High-level functions for common API operations
  */
 
-import { djangoApiRequest, DJANGO_ENDPOINTS, DJANGO_API_URL, NEXT_PUBLIC_USE_PROXY, getTokens, setTokens, clearTokens } from '@/lib/config/django-api'
+import { djangoApiRequest, DJANGO_ENDPOINTS, DJANGO_API_URL, getTokens, setTokens, clearTokens } from '@/lib/config/django-api'
 import type { Partnership } from '@/lib/types/partnership'
 
 // Auth APIs
@@ -19,11 +19,18 @@ export const authApi = {
       // include both common variations for confirm password
       password_confirm: data.password_confirm || data.confirmPassword || data.password_confirm || data.passwordConfirm,
       confirmPassword: data.confirmPassword || data.password_confirm || data.passwordConfirm || data.password_confirm,
-      // include both name variations
-      first_name: data.first_name || data.firstName || data.fullName || data.fullname,
-      fullName: data.fullName || data.first_name || data.firstName || data.fullname,
+      // include both name variations, and derive last_name from fullName when available
+      first_name: data.first_name || data.firstName || (data.fullName || data.fullname || '').split(' ')[0] || '',
+      last_name:
+        data.last_name ||
+        data.lastName ||
+        (() => {
+          const name = (data.fullName || data.fullname || '').trim()
+          const parts = name.split(' ')
+          if (parts.length > 1) return parts.slice(1).join(' ')
+          return ''
+        })(),
       phone: data.phone,
-      role: data.role || data.accountType || data.type || 'applicant',
     }
 
     try {
@@ -35,20 +42,12 @@ export const authApi = {
       })
 
       try {
-        // Use form-encoded to maximize compatibility
-        const formBody = new URLSearchParams({ email: data.email, password: data.password }).toString()
-        const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
+        const tokens = await djangoApiRequest<{ access: string; refresh: string }>(DJANGO_ENDPOINTS.auth.login, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
-          },
-          body: formBody,
+          body: JSON.stringify({ email: data.email, password: data.password }),
+          skipAuth: true,
+          suppressLog: true,
         })
-        if (!direct.ok) {
-          throw new Error(`Login after register failed with ${direct.status}`)
-        }
-        const tokens = await direct.json()
         setTokens(tokens)
         try {
           const u = await djangoApiRequest(DJANGO_ENDPOINTS.auth.me)
@@ -75,19 +74,12 @@ export const authApi = {
       const dupEmail = !!(err?.error && (JSON.stringify(err.error).toLowerCase().includes('already exists')))
       if (dupEmail) {
         try {
-          const formBody = new URLSearchParams({ email: data.email, password: data.password }).toString()
-          const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
+          const tokens = await djangoApiRequest<{ access: string; refresh: string }>(DJANGO_ENDPOINTS.auth.login, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Accept': 'application/json',
-            },
-            body: formBody,
+            body: JSON.stringify({ email: data.email, password: data.password }),
+            skipAuth: true,
+            suppressLog: true,
           })
-          if (!direct.ok) {
-            throw new Error(`Login after duplicate register failed with ${direct.status}`)
-          }
-          const tokens = await direct.json()
           setTokens(tokens)
           try {
             const u = await djangoApiRequest(DJANGO_ENDPOINTS.auth.me)
@@ -120,66 +112,54 @@ export const authApi = {
   },
 
   login: async (email: string, password: string) => {
-    // Prefer form-encoded for maximum compatibility with diverse deployments
     let response: { access: string; refresh: string }
     try {
-      const formBody = new URLSearchParams({ email, password }).toString()
-      const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
+      response = await djangoApiRequest<{ access: string; refresh: string }>(
+        DJANGO_ENDPOINTS.auth.login,
+        {
+          method: 'POST',
+          body: JSON.stringify({ email, password }),
+          skipAuth: true,
         },
-        body: formBody,
-      })
-      if (!direct.ok) {
-        const data = await direct.text().catch(() => '')
-        const err: any = new Error(`API Error: ${direct.status} ${direct.statusText}`)
-        err.status = direct.status
-        err.error = { detail: data || 'Login failed' }
-        throw err
-      }
-      response = await direct.json()
+      )
     } catch (e: any) {
-      const status = e?.status || 0
-      const bodyStr = (e?.error && JSON.stringify(e.error)) || ''
-      const shouldFallback =
-        (typeof window !== 'undefined') &&
-        (status === 404 || status === 405 || status === 415 || status === 400)
-      if (shouldFallback) {
-        // Fallback 1: same-origin proxy with JSON
-        const payload = JSON.stringify({ email, password })
+      const msg = String(e?.message || '')
+      const bodyObj = e?.error
+      const missingFieldError =
+        e?.status === 400 &&
+        (msg.includes('This field is required') ||
+          (bodyObj && (bodyObj.email || bodyObj.username)))
+
+      if (missingFieldError) {
+        // Retry with both email and username to satisfy different backends
         try {
           response = await djangoApiRequest<{ access: string; refresh: string }>(
-            '/api/users/token/',
+            DJANGO_ENDPOINTS.auth.login,
             {
               method: 'POST',
-              body: payload,
+              body: JSON.stringify({ email, username: email, password }),
               skipAuth: true,
+              // reduce noise
+              suppressLog: true,
             },
           )
         } catch (e2: any) {
-          // Fallback 2: direct JSON
-          try {
-            const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
+          // Final fallback: application/x-www-form-urlencoded
+          const form = new URLSearchParams({
+            email,
+            username: email,
+            password,
+          }).toString()
+          response = await djangoApiRequest<{ access: string; refresh: string }>(
+            DJANGO_ENDPOINTS.auth.login,
+            {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-              },
-              body: payload,
-            })
-            if (!direct.ok) {
-              const data = await direct.text().catch(() => '')
-              const err: any = new Error(`API Error: ${direct.status} ${direct.statusText}`)
-              err.status = direct.status
-              err.error = { detail: data || 'Login failed' }
-              throw err
-            }
-            response = await direct.json()
-          } catch (e3) {
-            throw e3
-          }
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: form,
+              skipAuth: true,
+              suppressLog: true,
+            },
+          )
         }
       } else {
         throw e
@@ -197,25 +177,24 @@ export const authApi = {
 
     // Store tokens
     setTokens(response)
-    // Kick off background fetch for current user; do NOT block login completion
-    ;(async () => {
-      try {
-        const user = await djangoApiRequest(DJANGO_ENDPOINTS.auth.me)
-        const mappedUser = {
-          id: user.id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          fullName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
-          phone: user.phone,
-          profilePhoto: user.profile_photo ? (user.profile_photo.startsWith('http') ? user.profile_photo : `${DJANGO_API_URL}${user.profile_photo}`) : null,
-          role: user.is_staff ? 'Admin' : 'User',
-        }
-        if (typeof window !== 'undefined') localStorage.setItem('clms_user', JSON.stringify(mappedUser))
-      } catch (e) {
-        // ignore background error
+    // Fetch and persist current user for UI session state
+    try {
+      const user = await djangoApiRequest(DJANGO_ENDPOINTS.auth.me)
+      // Map snake_case to camelCase
+      const mappedUser = {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        fullName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
+        phone: user.phone,
+        profilePhoto: user.profile_photo ? (user.profile_photo.startsWith('http') ? user.profile_photo : `${DJANGO_API_URL}${user.profile_photo}`) : null,
+        role: user.is_staff ? 'Admin' : 'User',
       }
-    })()
+      if (typeof window !== 'undefined') localStorage.setItem('clms_user', JSON.stringify(mappedUser))
+    } catch (e) {
+      console.warn('[v0] Failed to fetch user after login:', e)
+    }
     return response
   },
 
