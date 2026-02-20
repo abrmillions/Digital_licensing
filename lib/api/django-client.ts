@@ -197,24 +197,25 @@ export const authApi = {
 
     // Store tokens
     setTokens(response)
-    // Fetch and persist current user for UI session state
-    try {
-      const user = await djangoApiRequest(DJANGO_ENDPOINTS.auth.me)
-      // Map snake_case to camelCase
-      const mappedUser = {
-        id: user.id,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        fullName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
-        phone: user.phone,
-        profilePhoto: user.profile_photo ? (user.profile_photo.startsWith('http') ? user.profile_photo : `${DJANGO_API_URL}${user.profile_photo}`) : null,
-        role: user.is_staff ? 'Admin' : 'User',
+    // Kick off background fetch for current user; do NOT block login completion
+    ;(async () => {
+      try {
+        const user = await djangoApiRequest(DJANGO_ENDPOINTS.auth.me)
+        const mappedUser = {
+          id: user.id,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          fullName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
+          phone: user.phone,
+          profilePhoto: user.profile_photo ? (user.profile_photo.startsWith('http') ? user.profile_photo : `${DJANGO_API_URL}${user.profile_photo}`) : null,
+          role: user.is_staff ? 'Admin' : 'User',
+        }
+        if (typeof window !== 'undefined') localStorage.setItem('clms_user', JSON.stringify(mappedUser))
+      } catch (e) {
+        // ignore background error
       }
-      if (typeof window !== 'undefined') localStorage.setItem('clms_user', JSON.stringify(mappedUser))
-    } catch (e) {
-      console.warn('[v0] Failed to fetch user after login:', e)
-    }
+    })()
     return response
   },
 
