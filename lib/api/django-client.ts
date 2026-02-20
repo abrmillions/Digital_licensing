@@ -32,6 +32,7 @@ export const authApi = {
         body: JSON.stringify(payload),
         skipAuth: true,
         suppressLog: true,
+        timeoutMs: 20000,
       })
 
       try {
@@ -130,6 +131,7 @@ export const authApi = {
           method: 'POST',
           body: payload,
           skipAuth: true,
+          timeoutMs: 15000,
         },
       )
     } catch (e: any) {
@@ -149,6 +151,7 @@ export const authApi = {
               method: 'POST',
               body: payload,
               skipAuth: true,
+              timeoutMs: 15000,
             },
           )
         } catch (e2: any) {
@@ -182,6 +185,7 @@ export const authApi = {
                 body: formBody,
                 skipAuth: true,
                 suppressLog: true,
+                timeoutMs: 15000,
               },
             )
           }
@@ -238,6 +242,7 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ email, frontend_url: frontendUrl }),
       skipAuth: true,
+      timeoutMs: 15000,
     })
   },
 
@@ -260,6 +265,7 @@ export const authApi = {
           // on logout (IsAuthenticated) work correctly.
           skipAuth: false,
           suppressLog: true,
+          timeoutMs: 10000,
         })
       }
     } catch (error: any) {
@@ -287,6 +293,7 @@ export const authApi = {
     return djangoApiRequest(DJANGO_ENDPOINTS.auth.me, {
       method: 'PATCH',
       body: body,
+      timeoutMs: 20000,
     })
   },
 
