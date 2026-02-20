@@ -1,119 +1,151 @@
 "use client"
 
-import type React from "react"
+import React, { createContext, useContext, useEffect, useState } from "react"
+import { authApi } from "@/lib/api/django-client"
+import { DJANGO_API_URL } from "@/lib/config/django-api"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth/auth-context"
+interface User {
+  id: string
+  email: string
+  fullName?: string
+  firstName?: string
+  lastName?: string
+  phone?: string
+  role?: string
+  profilePhoto?: string
+  createdAt?: string
+}
 
-export function LoginForm() {
-  const router = useRouter()
-  const { login } = useAuth()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+interface AuthContextType {
+  user: User | null
+  isLoading: boolean
+  logout: () => Promise<void>
+  login: (email: string, password: string) => Promise<void>
+  isAuthenticated: boolean
+  updateUser: (u: User) => void
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setIsLoading(true)
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-    try {
-      // Trim email to avoid accidental leading/trailing whitespace
-      await login(email.trim(), password)
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-      console.log("[v0] Login successful")
-      
-      // Redirect to dashboard
-      router.push("/dashboard")
-    } catch (err: any) {
-      let errorMessage = "Login failed"
-
-      // Show a friendly, non-revealing message for authentication failures
-      const detail = err?.error?.detail || err?.message || ""
-      if (err?.status === 401 || /no active account found|credentials/i.test(detail)) {
-        errorMessage = "Invalid email or password. Try again."
-      } else if (detail) {
-        errorMessage = detail
-      }
-
-      setError(errorMessage)
-      // Log a concise message (avoid printing full Error object/stacks in console)
+  // Check session on mount and restore from JWT if available
+  useEffect(() => {
+    const checkSession = async () => {
       try {
-        console.debug(`[v0] Login error: ${err?.message || JSON.stringify(err)}`)
-      } catch {
-        // fallback to safe log
-        console.debug('[v0] Login error')
+        const tokens = typeof window !== "undefined" ? localStorage.getItem("clms_tokens") : null
+        if (tokens) {
+          try {
+            const currentUser = await authApi.getCurrentUser()
+            // Map snake_case to camelCase
+            const mappedUser: User = {
+                id: currentUser.id,
+                email: currentUser.email,
+                firstName: currentUser.first_name,
+                lastName: currentUser.last_name,
+                fullName: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.username,
+                phone: currentUser.phone,
+                profilePhoto: currentUser.profile_photo ? (currentUser.profile_photo.startsWith('http') ? currentUser.profile_photo : `${DJANGO_API_URL}${currentUser.profile_photo}`) : null,
+                role: currentUser.is_staff ? 'Admin' : 'User'
+            }
+            
+            setUser(mappedUser)
+            if (typeof window !== "undefined") localStorage.setItem("clms_user", JSON.stringify(mappedUser))
+          } catch (e) {
+            console.warn("[v0] Failed to restore user from token:", e)
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("clms_tokens")
+              localStorage.removeItem("clms_user")
+            }
+          }
+        } else {
+          // If no tokens are found, ensure we clear any stale user data
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("clms_user")
+          }
+          setUser(null)
+        }
+      } catch (error) {
+        console.error("[v0] Failed to restore session:", error)
+        if (typeof window !== "undefined") localStorage.removeItem("clms_user")
+      } finally {
+        setIsLoading(false)
       }
-      setIsLoading(false)
+    }
+
+    checkSession()
+  }, [])
+
+  const logout = async () => {
+    try {
+      await authApi.logout()
+      setUser(null)
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("clms_user")
+        localStorage.removeItem("clms_tokens")
+      }
+    } catch (error) {
+      console.error("[v0] Logout error:", error)
     }
   }
 
+  const login = async (email: string, password: string) => {
+    // Perform login to get tokens (returns quickly)
+    await authApi.login(email, password)
+    // Optimistically set minimal user to unblock UI immediately
+    const minimalUser: User = { id: '', email }
+    setUser(minimalUser)
+    if (typeof window !== "undefined") localStorage.setItem("clms_user", JSON.stringify(minimalUser))
+
+    // Refresh full profile in background without blocking caller
+    ;(async () => {
+      try {
+        const currentUser = await authApi.getCurrentUser()
+        const mappedUser: User = {
+          id: currentUser.id,
+          email: currentUser.email,
+          firstName: currentUser.first_name,
+          lastName: currentUser.last_name,
+          fullName: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.username,
+          phone: currentUser.phone,
+          profilePhoto: currentUser.profile_photo ? (currentUser.profile_photo.startsWith('http') ? currentUser.profile_photo : `${DJANGO_API_URL}${currentUser.profile_photo}`) : null,
+          role: currentUser.is_staff ? 'Admin' : 'User',
+        }
+        setUser(mappedUser)
+        if (typeof window !== "undefined") localStorage.setItem("clms_user", JSON.stringify(mappedUser))
+      } catch (e) {
+        // keep minimal user; allow UI to function
+      }
+    })()
+  }
+
+  const updateUser = (u: User) => {
+    setUser(u)
+    if (typeof window !== "undefined") localStorage.setItem("clms_user", JSON.stringify(u))
+  }
+
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="px-4 pt-6 pb-4 md:p-6">
-        <CardTitle className="text-2xl">Sign In</CardTitle>
-        <CardDescription>Enter your credentials to access your account</CardDescription>
-      </CardHeader>
-      <CardContent className="px-4 pb-4 md:p-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link href="/forgot-password" className="text-sm text-primary hover:underline">
-                Forgot password?
-              </Link>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign In"}
-          </Button>
-        </form>
-      </CardContent>
-      <CardFooter className="flex flex-col space-y-4">
-        <div className="text-sm text-muted-foreground text-center">
-          {"Don't have an account? "}
-          <Link href="/register" className="text-primary hover:underline font-medium">
-            Register here
-          </Link>
-        </div>
-      </CardFooter>
-    </Card>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        logout,
+        login,
+        isAuthenticated: user !== null,
+        updateUser,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
   )
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider")
+  }
+  return context
 }
