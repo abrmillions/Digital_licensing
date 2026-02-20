@@ -3,14 +3,12 @@
  * Central configuration for Django backend communication
  */
 
-// Resolve Django base URL with a safe production fallback.
-// Priority:
-// 1) NEXT_PUBLIC_DJANGO_API_URL env (recommended)
-// 2) If running on Vercel (production), default to the deployed Render backend
-// 3) Local development default
 export const DJANGO_API_URL =
   process.env.NEXT_PUBLIC_DJANGO_API_URL ||
-  (process.env.VERCEL ? "https://backend-te21.onrender.com" : "http://localhost:8000");
+  process.env.DJANGO_API_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://backend-te21.onrender.com"
+    : "http://localhost:8000");
 // Toggle whether the frontend should rewrite backend absolute URLs to same-origin proxy paths.
 // Set NEXT_PUBLIC_USE_PROXY=1 in environment to enable proxy rewriting.
 export const NEXT_PUBLIC_USE_PROXY =
@@ -168,24 +166,34 @@ export async function djangoApiRequest<T = any>(
   }
 
   if (!(options.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json");
+    // Only set a default Content-Type when the caller hasn't specified one.
+    // This allows callers to submit alternative encodings (e.g., x-www-form-urlencoded).
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
   }
 
   try {
-    // Rewrite to same-origin proxy only when explicitly enabled
-    if (typeof window !== "undefined" && NEXT_PUBLIC_USE_PROXY) {
-      if (endpoint.startsWith(DJANGO_API_URL)) {
-        try {
-          const url = new URL(endpoint)
-          const path = url.pathname || ""
-          if (path.startsWith("/api/")) {
-            endpoint = endpoint.replace(DJANGO_API_URL, "")
-            // eslint-disable-next-line no-console
-            console.debug("[v0] djangoApiRequest rewrote endpoint to use proxy:", endpoint)
-          }
-        } catch (e) {
-          /* ignore */
+    // If running in the browser and proxy rewriting is enabled, and the endpoint
+    // points at the configured DJANGO_API_URL, rewrite to a same-origin path so
+    // the Next.js API routes (proxy) can be used to avoid CORS in local/dev.
+    // In production, keep NEXT_PUBLIC_USE_PROXY=0 to call the backend directly.
+    if (
+      typeof window !== "undefined" &&
+      NEXT_PUBLIC_USE_PROXY &&
+      endpoint.startsWith(DJANGO_API_URL)
+    ) {
+      try {
+        const url = new URL(endpoint)
+        const path = url.pathname || ""
+        // Only rewrite API requests to same-origin proxy; leave media and other absolute URLs alone
+        if (path.startsWith("/api/")) {
+          endpoint = endpoint.replace(DJANGO_API_URL, "")
+          // eslint-disable-next-line no-console
+          console.debug("[v0] djangoApiRequest rewrote endpoint to use proxy:", endpoint)
         }
+      } catch (e) {
+        /* ignore */
       }
     }
 
