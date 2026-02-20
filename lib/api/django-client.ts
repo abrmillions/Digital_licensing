@@ -111,17 +111,42 @@ export const authApi = {
   },
 
   login: async (email: string, password: string) => {
-    const loginEndpoint = (typeof window !== 'undefined' && NEXT_PUBLIC_USE_PROXY)
-      ? '/api/users/token/'
-      : DJANGO_ENDPOINTS.auth.login
-    const response = await djangoApiRequest<{ access: string; refresh: string }>(
-      loginEndpoint,
-      {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-        skipAuth: true,
-      },
-    )
+    // Try direct backend first for reliability; if it fails for format/route reasons, fall back to proxy
+    let response: { access: string; refresh: string }
+    const payload = JSON.stringify({ email, password })
+    try {
+      response = await djangoApiRequest<{ access: string; refresh: string }>(
+        DJANGO_ENDPOINTS.auth.login,
+        {
+          method: 'POST',
+          body: payload,
+          skipAuth: true,
+        },
+      )
+    } catch (e: any) {
+      const status = e?.status || 0
+      const bodyStr = (e?.error && JSON.stringify(e.error)) || ''
+      const shouldFallback =
+        (typeof window !== 'undefined') &&
+        (
+          status === 404 ||
+          status === 405 ||
+          status === 415 ||
+          (status === 400 && /required/i.test(bodyStr || ''))
+        )
+      if (shouldFallback) {
+        response = await djangoApiRequest<{ access: string; refresh: string }>(
+          '/api/users/token/',
+          {
+            method: 'POST',
+            body: payload,
+            skipAuth: true,
+          },
+        )
+      } else {
+        throw e
+      }
+    }
 
     // Debug: log token response for troubleshooting login issues
     try {
