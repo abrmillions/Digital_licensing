@@ -120,17 +120,17 @@ export const authApi = {
   },
 
   login: async (email: string, password: string) => {
-    // Prefer form-encoded for maximum compatibility with diverse deployments
+    // Prefer JSON first to support SimpleJWT's default JSON-only parser in many deployments
     let response: { access: string; refresh: string }
     try {
-      const formBody = new URLSearchParams({ email, username: email, password }).toString()
+      const payload = JSON.stringify({ email, username: email, password })
       const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: formBody,
+        body: payload,
       })
       if (!direct.ok) {
         const data = await direct.text().catch(() => '')
@@ -160,15 +160,16 @@ export const authApi = {
             },
           )
         } catch (e2: any) {
-          // Fallback 2: direct JSON to backend
+          // Fallback 2: direct form-encoded to backend
           try {
+            const formBody = new URLSearchParams({ email, username: email, password }).toString()
             const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
               method: 'POST',
               headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
                 'Accept': 'application/json',
               },
-              body: payload,
+              body: formBody,
             })
             if (!direct.ok) {
               const data = await direct.text().catch(() => '')
