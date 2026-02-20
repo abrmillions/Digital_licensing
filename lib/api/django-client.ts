@@ -118,7 +118,8 @@ export const authApi = {
         DJANGO_ENDPOINTS.auth.login,
         {
           method: 'POST',
-          body: JSON.stringify({ email, password }),
+          // Include both `email` and `username` to satisfy USERNAME_FIELD variations
+          body: JSON.stringify({ email, username: email, password }),
           skipAuth: true,
         },
       )
