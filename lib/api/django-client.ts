@@ -4,7 +4,7 @@
  * High-level functions for common API operations
  */
 
-import { djangoApiRequest, DJANGO_ENDPOINTS, DJANGO_API_URL, getTokens, setTokens, clearTokens } from '@/lib/config/django-api'
+import { djangoApiRequest, DJANGO_ENDPOINTS, DJANGO_API_URL, NEXT_PUBLIC_USE_PROXY, getTokens, setTokens, clearTokens } from '@/lib/config/django-api'
 import type { Partnership } from '@/lib/types/partnership'
 
 // Auth APIs
@@ -19,18 +19,11 @@ export const authApi = {
       // include both common variations for confirm password
       password_confirm: data.password_confirm || data.confirmPassword || data.password_confirm || data.passwordConfirm,
       confirmPassword: data.confirmPassword || data.password_confirm || data.passwordConfirm || data.password_confirm,
-      // include both name variations, and derive last_name from fullName when available
-      first_name: data.first_name || data.firstName || (data.fullName || data.fullname || '').split(' ')[0] || '',
-      last_name:
-        data.last_name ||
-        data.lastName ||
-        (() => {
-          const name = (data.fullName || data.fullname || '').trim()
-          const parts = name.split(' ')
-          if (parts.length > 1) return parts.slice(1).join(' ')
-          return ''
-        })(),
+      // include both name variations
+      first_name: data.first_name || data.firstName || data.fullName || data.fullname,
+      fullName: data.fullName || data.first_name || data.firstName || data.fullname,
       phone: data.phone,
+      role: data.role || data.accountType || data.type || 'applicant',
     }
 
     try {
@@ -42,9 +35,12 @@ export const authApi = {
       })
 
       try {
-        const tokens = await djangoApiRequest<{ access: string; refresh: string }>(DJANGO_ENDPOINTS.auth.login, {
+        const loginEndpoint = (typeof window !== 'undefined' && NEXT_PUBLIC_USE_PROXY)
+          ? '/api/users/token/'
+          : DJANGO_ENDPOINTS.auth.login
+        const tokens = await djangoApiRequest<{ access: string; refresh: string }>(loginEndpoint, {
           method: 'POST',
-          body: JSON.stringify({ username: data.email, password: data.password }),
+          body: JSON.stringify({ email: data.email, password: data.password }),
           skipAuth: true,
           suppressLog: true,
         })
@@ -74,9 +70,12 @@ export const authApi = {
       const dupEmail = !!(err?.error && (JSON.stringify(err.error).toLowerCase().includes('already exists')))
       if (dupEmail) {
         try {
-          const tokens = await djangoApiRequest<{ access: string; refresh: string }>(DJANGO_ENDPOINTS.auth.login, {
+          const loginEndpoint = (typeof window !== 'undefined' && NEXT_PUBLIC_USE_PROXY)
+            ? '/api/users/token/'
+            : DJANGO_ENDPOINTS.auth.login
+          const tokens = await djangoApiRequest<{ access: string; refresh: string }>(loginEndpoint, {
             method: 'POST',
-            body: JSON.stringify({ username: data.email, password: data.password }),
+            body: JSON.stringify({ email: data.email, password: data.password }),
             skipAuth: true,
             suppressLog: true,
           })
@@ -112,11 +111,14 @@ export const authApi = {
   },
 
   login: async (email: string, password: string) => {
+    const loginEndpoint = (typeof window !== 'undefined' && NEXT_PUBLIC_USE_PROXY)
+      ? '/api/users/token/'
+      : DJANGO_ENDPOINTS.auth.login
     const response = await djangoApiRequest<{ access: string; refresh: string }>(
-      DJANGO_ENDPOINTS.auth.login,
+      loginEndpoint,
       {
         method: 'POST',
-        body: JSON.stringify({ username: email, password }),
+        body: JSON.stringify({ email, password }),
         skipAuth: true,
       },
     )
