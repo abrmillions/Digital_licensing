@@ -92,14 +92,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const login = async (email: string, password: string) => {
-    // Perform login to get tokens
+    // Perform login to get tokens (returns quickly)
     await authApi.login(email, password)
-    
-    // After successful login, fetch the current user
-    try {
-      const currentUser = await authApi.getCurrentUser()
-      // Map snake_case to camelCase
-      const mappedUser: User = {
+    // Optimistically set minimal user to unblock UI immediately
+    const minimalUser: User = { id: '', email }
+    setUser(minimalUser)
+    if (typeof window !== "undefined") localStorage.setItem("clms_user", JSON.stringify(minimalUser))
+
+    // Refresh full profile in background without blocking caller
+    ;(async () => {
+      try {
+        const currentUser = await authApi.getCurrentUser()
+        const mappedUser: User = {
           id: currentUser.id,
           email: currentUser.email,
           firstName: currentUser.first_name,
@@ -107,19 +111,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           fullName: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.username,
           phone: currentUser.phone,
           profilePhoto: currentUser.profile_photo ? (currentUser.profile_photo.startsWith('http') ? currentUser.profile_photo : `${DJANGO_API_URL}${currentUser.profile_photo}`) : null,
-          role: currentUser.is_staff ? 'Admin' : 'User'
+          role: currentUser.is_staff ? 'Admin' : 'User',
+        }
+        setUser(mappedUser)
+        if (typeof window !== "undefined") localStorage.setItem("clms_user", JSON.stringify(mappedUser))
+      } catch (e) {
+        // keep minimal user; allow UI to function
       }
-      
-      setUser(mappedUser)
-      if (typeof window !== "undefined") localStorage.setItem("clms_user", JSON.stringify(mappedUser))
-    } catch (error) {
-      // Do not block navigation if /me fails. Tokens are stored, so the session can be restored later.
-      console.warn("[v0] Proceeding without /me after login due to error:", error)
-      // Best-effort: set a minimal user object so UI can proceed; background fetch will refine it later.
-      const minimalUser: User = { id: '', email }
-      setUser(minimalUser)
-      if (typeof window !== "undefined") localStorage.setItem("clms_user", JSON.stringify(minimalUser))
-    }
+    })()
   }
 
   const updateUser = (u: User) => {
