@@ -124,22 +124,14 @@ export const authApi = {
     let response: { access: string; refresh: string }
     try {
       const payload = JSON.stringify({ email, username: email, password })
-      const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
+      response = await djangoApiRequest<{ access: string; refresh: string }>(
+        DJANGO_ENDPOINTS.auth.login,
+        {
+          method: 'POST',
+          body: payload,
+          skipAuth: true,
         },
-        body: payload,
-      })
-      if (!direct.ok) {
-        const data = await direct.text().catch(() => '')
-        const err: any = new Error(`API Error: ${direct.status} ${direct.statusText}`)
-        err.status = direct.status
-        err.error = { detail: data || 'Login failed' }
-        throw err
-      }
-      response = await direct.json()
+      )
     } catch (e: any) {
       const status = e?.status || 0
       const msg = String(e?.message || '')
