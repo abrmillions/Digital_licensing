@@ -3,12 +3,14 @@
  * Central configuration for Django backend communication
  */
 
+// Resolve Django base URL with a safe production fallback.
+// Priority:
+// 1) NEXT_PUBLIC_DJANGO_API_URL env (recommended)
+// 2) If running on Vercel (production), default to the deployed Render backend
+// 3) Local development default
 export const DJANGO_API_URL =
   process.env.NEXT_PUBLIC_DJANGO_API_URL ||
-  process.env.DJANGO_API_URL ||
-  (process.env.NODE_ENV === "production"
-    ? "https://backend-te21.onrender.com"
-    : "http://localhost:8000");
+  (process.env.VERCEL ? "https://backend-te21.onrender.com" : "http://localhost:8000");
 // Toggle whether the frontend should rewrite backend absolute URLs to same-origin proxy paths.
 // Set NEXT_PUBLIC_USE_PROXY=1 in environment to enable proxy rewriting.
 export const NEXT_PUBLIC_USE_PROXY =
@@ -170,13 +172,10 @@ export async function djangoApiRequest<T = any>(
   }
 
   try {
-    // If running in the browser and proxy rewriting is enabled, and the endpoint
-    // points at the configured DJANGO_API_URL, rewrite to a same-origin path so
-    // the Next.js API routes (proxy) can be used to avoid CORS in local/dev.
-    // In production, keep NEXT_PUBLIC_USE_PROXY=0 to call the backend directly.
+    // If running in the browser and the endpoint points at the configured DJANGO_API_URL,
+    // rewrite to a same-origin path so the Next.js API routes (proxy) can be used and avoid CORS issues.
     if (
       typeof window !== "undefined" &&
-      NEXT_PUBLIC_USE_PROXY &&
       endpoint.startsWith(DJANGO_API_URL)
     ) {
       try {
