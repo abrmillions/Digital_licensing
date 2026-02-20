@@ -172,23 +172,20 @@ export async function djangoApiRequest<T = any>(
   }
 
   try {
-    // If running in the browser and the endpoint points at the configured DJANGO_API_URL,
-    // rewrite to a same-origin path so the Next.js API routes (proxy) can be used and avoid CORS issues.
-    if (
-      typeof window !== "undefined" &&
-      endpoint.startsWith(DJANGO_API_URL)
-    ) {
-      try {
-        const url = new URL(endpoint)
-        const path = url.pathname || ""
-        // Only rewrite API requests to same-origin proxy; leave media and other absolute URLs alone
-        if (path.startsWith("/api/")) {
-          endpoint = endpoint.replace(DJANGO_API_URL, "")
-          // eslint-disable-next-line no-console
-          console.debug("[v0] djangoApiRequest rewrote endpoint to use proxy:", endpoint)
+    // Rewrite to same-origin proxy only when explicitly enabled
+    if (typeof window !== "undefined" && NEXT_PUBLIC_USE_PROXY) {
+      if (endpoint.startsWith(DJANGO_API_URL)) {
+        try {
+          const url = new URL(endpoint)
+          const path = url.pathname || ""
+          if (path.startsWith("/api/")) {
+            endpoint = endpoint.replace(DJANGO_API_URL, "")
+            // eslint-disable-next-line no-console
+            console.debug("[v0] djangoApiRequest rewrote endpoint to use proxy:", endpoint)
+          }
+        } catch (e) {
+          /* ignore */
         }
-      } catch (e) {
-        /* ignore */
       }
     }
 
