@@ -133,7 +133,9 @@ export default function DashboardPage() {
             </div>
             <div>
               <h1 className="text-lg font-semibold text-foreground">CLMS Dashboard</h1>
-              <p className="text-xs text-muted-foreground">Welcome back, {(user as any).name}</p>
+              <p className="text-xs text-muted-foreground">
+                Welcome back, {((user as any)?.fullName || (user as any)?.firstName || (user as any)?.email || "").toString()}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
