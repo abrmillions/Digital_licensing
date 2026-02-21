@@ -6,4 +6,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return proxyToDjango(request, `/api/applications/${p.id}/download_documents/`)
 }
 
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const p = await params
+  return proxyToDjango(request, `/api/applications/${p.id}/download_documents/`)
+}
+
 
