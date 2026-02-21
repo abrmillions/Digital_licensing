@@ -32,7 +32,6 @@ export const authApi = {
         body: JSON.stringify(payload),
         skipAuth: true,
         suppressLog: true,
-        timeoutMs: 20000,
       })
 
       try {
@@ -121,19 +120,26 @@ export const authApi = {
   },
 
   login: async (email: string, password: string) => {
-    // Prefer JSON first to support SimpleJWT's default JSON-only parser in many deployments
+    // Prefer form-encoded for maximum compatibility with diverse deployments
     let response: { access: string; refresh: string }
     try {
-      const payload = JSON.stringify({ email, username: email, password })
-      response = await djangoApiRequest<{ access: string; refresh: string }>(
-        DJANGO_ENDPOINTS.auth.login,
-        {
-          method: 'POST',
-          body: payload,
-          skipAuth: true,
-          timeoutMs: 15000,
+      const formBody = new URLSearchParams({ email, username: email, password }).toString()
+      const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
         },
-      )
+        body: formBody,
+      })
+      if (!direct.ok) {
+        const data = await direct.text().catch(() => '')
+        const err: any = new Error(`API Error: ${direct.status} ${direct.statusText}`)
+        err.status = direct.status
+        err.error = { detail: data || 'Login failed' }
+        throw err
+      }
+      response = await direct.json()
     } catch (e: any) {
       const status = e?.status || 0
       const msg = String(e?.message || '')
@@ -151,20 +157,18 @@ export const authApi = {
               method: 'POST',
               body: payload,
               skipAuth: true,
-              timeoutMs: 15000,
             },
           )
         } catch (e2: any) {
-          // Fallback 2: direct form-encoded to backend
+          // Fallback 2: direct JSON to backend
           try {
-            const formBody = new URLSearchParams({ email, username: email, password }).toString()
             const direct = await fetch(DJANGO_ENDPOINTS.auth.login, {
               method: 'POST',
               headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
                 'Accept': 'application/json',
               },
-              body: formBody,
+              body: payload,
             })
             if (!direct.ok) {
               const data = await direct.text().catch(() => '')
@@ -185,7 +189,6 @@ export const authApi = {
                 body: formBody,
                 skipAuth: true,
                 suppressLog: true,
-                timeoutMs: 15000,
               },
             )
           }
@@ -242,7 +245,6 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ email, frontend_url: frontendUrl }),
       skipAuth: true,
-      timeoutMs: 15000,
     })
   },
 
@@ -265,7 +267,6 @@ export const authApi = {
           // on logout (IsAuthenticated) work correctly.
           skipAuth: false,
           suppressLog: true,
-          timeoutMs: 10000,
         })
       }
     } catch (error: any) {
@@ -293,7 +294,6 @@ export const authApi = {
     return djangoApiRequest(DJANGO_ENDPOINTS.auth.me, {
       method: 'PATCH',
       body: body,
-      timeoutMs: 20000,
     })
   },
 
@@ -1015,7 +1015,28 @@ export const documentsApi = {
 
   downloadByUrl: async (url: string) => {
     const full = url.startsWith('http') ? url : `${DJANGO_API_URL}${url}`
-    return djangoApiRequest<Blob>(full, { method: 'GET', responseType: 'blob' })
+    try {
+      if (typeof window !== 'undefined' && NEXT_PUBLIC_USE_PROXY) {
+        try {
+          const u = new URL(full)
+          const path = u.pathname || ''
+          if (path.startsWith('/media/')) {
+            const proxied = `/api/media/${path.replace(/^\/media\//, '')}`
+            return await djangoApiRequest<Blob>(proxied, { method: 'GET', responseType: 'blob' })
+          }
+        } catch {
+          /* ignore URL parse errors and fall through */
+        }
+      }
+      return await djangoApiRequest<Blob>(full, { method: 'GET', responseType: 'blob' })
+    } catch (e: any) {
+      // Normalize error for callers expecting blob
+      const msg = (e?.error?.detail && String(e.error.detail).trim()) || (e?.message && String(e.message).trim()) || 'Failed to fetch'
+      const errorPayload = JSON.stringify({ detail: msg })
+      const errorBlob = new Blob([errorPayload], { type: 'application/json' })
+      try { ;(errorBlob as any).status = e?.status || 0 } catch {}
+      return errorBlob as unknown as Blob
+    }
   },
 
   verify: async (id: string) => {
