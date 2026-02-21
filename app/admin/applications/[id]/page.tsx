@@ -95,45 +95,6 @@ export default function ApplicationReview({
     fetchData();
   }, [id, toast]);
 
-  const downloadBlob = (blob: Blob, filename: string) => {
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 10000)
-  }
-
-  const handleDownloadDocument = async (doc: any) => {
-    try {
-      const targetUrl = String(doc.file || '')
-      if (!targetUrl) {
-        toast({ title: "Download Failed", description: "No file URL available.", variant: "destructive" })
-        return
-      }
-      const blob = await documentsApi.downloadByUrl(targetUrl)
-      if (blob.type === 'application/json') {
-        try {
-          const text = await (blob as any).text?.() || await new Response(blob).text()
-          const json = JSON.parse(text)
-          toast({ title: "Download Failed", description: json.detail || "Could not download file.", variant: "destructive" })
-          return
-        } catch {
-          toast({ title: "Download Failed", description: "Could not download file.", variant: "destructive" })
-          return
-        }
-      }
-      const name = doc.name || String(targetUrl).split('/').pop() || `document-${doc.id || ''}`
-      downloadBlob(blob, String(name))
-      toast({ title: "Download Started", description: String(name) })
-    } catch (e: any) {
-      console.error("Download doc error:", e)
-      toast({ title: "Download Failed", description: e?.message || "Could not download file.", variant: "destructive" })
-    }
-  }
-
   const handleApprove = async () => {
     setIsApproving(true);
     try {
@@ -603,10 +564,16 @@ export default function ApplicationReview({
                               )}
                           </div>
                         </div>
-                      <Button variant="ghost" size="sm" onClick={() => handleDownloadDocument(doc)}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
-                      </Button>
+                        <Button variant="ghost" size="sm" asChild>
+                          <a
+                            href={doc.file}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Download
+                          </a>
+                        </Button>
                       </div>
                     ))
                   )}
