@@ -13,11 +13,30 @@ import { ImportExportStep3 } from "@/components/licenses/import-export/step3-ite
 import { ImportExportStep4 } from "@/components/licenses/import-export/step4-documents"
 import { ImportExportStep5 } from "@/components/licenses/import-export/step5-review"
 import { applicationsApi, documentsApi } from "@/lib/api/django-client"
+import { useToast } from "@/hooks/use-toast"
+
+type ImportExportFormData = {
+  companyName: string
+  registrationNumber: string
+  taxId: string
+  address: string
+  contactPerson: string
+  email: string
+  phone: string
+  permitType: string
+  duration: string
+  customsOffice: string
+  purposeOfImport: string
+  items: any[]
+  company_representative_photo: File | null
+  documents: Record<string, File | null>
+}
 
 export default function ImportExportApplyPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ImportExportFormData>({
     // Company Info
     companyName: "",
     registrationNumber: "",
@@ -44,7 +63,7 @@ export default function ImportExportApplyPage() {
       customsLicense: null,
       itemSpecifications: null,
       proformaInvoice: null,
-    },
+    } as Record<string, File | null>,
   })
 
   const steps = [
@@ -97,6 +116,10 @@ export default function ImportExportApplyPage() {
       }
 
       console.log("[v0] Import/Export application submitted:", application)
+      toast({
+        title: "your application is submitted succesfully",
+        description: "",
+      })
       router.push("/dashboard/applications")
     } catch (err: any) {
       console.error("[v0] Submit error:", err)
