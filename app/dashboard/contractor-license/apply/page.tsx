@@ -12,20 +12,38 @@ import { ContractorStep2 } from "@/components/licenses/contractor/step2-company-
 import { ContractorStep3 } from "@/components/licenses/contractor/step3-documents"
 import { ContractorStep4 } from "@/components/licenses/contractor/step4-review"
 import { applicationsApi, documentsApi } from "@/lib/api/django-client"
+import { useToast } from "@/hooks/use-toast"
+
+type ContractorFormData = {
+  applicantName: string
+  email: string
+  phone: string
+  nationalId: string
+  dateOfBirth: string
+  companyName: string
+  registrationNumber: string
+  taxId: string
+  address: string
+  city: string
+  postalCode: string
+  yearsOfExperience: string
+  licenseType: string
+  workScope: string[]
+  profile_photo: File | null
+  documents: Record<string, File | null>
+}
 
 export default function ContractorLicenseApplyPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [error, setError] = useState("")
-  const [formData, setFormData] = useState({
-    // Step 1: Basic Info
+  const [formData, setFormData] = useState<ContractorFormData>({
     applicantName: "",
     email: "",
     phone: "",
     nationalId: "",
     dateOfBirth: "",
-
-    // Step 2: Company Details
     companyName: "",
     registrationNumber: "",
     taxId: "",
@@ -35,8 +53,6 @@ export default function ContractorLicenseApplyPage() {
     yearsOfExperience: "",
     licenseType: "",
     workScope: [],
-
-    // Step 3: Documents
     profile_photo: null,
     documents: {
       nationalIdCopy: null,
@@ -44,7 +60,7 @@ export default function ContractorLicenseApplyPage() {
       taxCertificate: null,
       experienceCertificate: null,
       financialStatement: null,
-    },
+    } as Record<string, File | null>,
   })
 
   const steps = [
@@ -112,6 +128,10 @@ export default function ContractorLicenseApplyPage() {
       }
 
       console.log("[v0] Application submitted:", application)
+      toast({
+        title: "your application is submitted succesfully",
+        description: "",
+      })
       router.push("/dashboard/applications")
     } catch (err: any) {
       console.error("[v0] Submit error:", err)
