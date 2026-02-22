@@ -480,13 +480,10 @@ export default function MyLicenses() {
                                   variant="outline"
                                   className="h-8 px-3 text-xs"
                                   onClick={() => handleDownloadCertificate(license)}
-                                  disabled={
-                                    downloadingId === (license.backendId || license.id) ||
-                                    !paidMap[String(license.backendId || license.id)]
-                                  }
+                                  disabled={downloadingId === (license.backendId || license.id)}
                                 >
                                   <Download className="h-3 w-3 mr-1.5" />
-                                  {downloadingId === license.id ? "Downloading..." : "Certificate"}
+                                  {downloadingId === (license.backendId || license.id) ? "Downloading..." : "Certificate"}
                                 </Button>
                               </>
                             </>
