@@ -13,13 +13,36 @@ import { ProfessionalStep3 } from "@/components/licenses/professional/step3-expe
 import { ProfessionalStep4 } from "@/components/licenses/professional/step4-documents"
 import { ProfessionalStep5 } from "@/components/licenses/professional/step5-review"
 import { applicationsApi } from "@/lib/api/django-client"
+import { useToast } from "@/hooks/use-toast"
+
+type ProfessionalFormData = {
+  fullName: string
+  email: string
+  phone: string
+  nationalId: string
+  dateOfBirth: string
+  address: string
+  profession: string
+  specialization: string
+  degree: string
+  university: string
+  graduationYear: string
+  licenseNumber: string
+  yearsOfExperience: string
+  currentEmployer: string
+  position: string
+  projects: any[]
+  professional_photo: File | null
+  documents: Record<string, File | null>
+}
 
 export default function ProfessionalLicenseApplyPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [error, setError] = useState("")
   const [canApply, setCanApply] = useState(true)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProfessionalFormData>({
     // Personal Info
     fullName: "",
     email: "",
@@ -51,7 +74,7 @@ export default function ProfessionalLicenseApplyPage() {
       experienceLetter: null,
       professionalPhoto: null,
       previousLicense: null,
-    },
+    } as Record<string, File | null>,
   })
 
   const steps = [
@@ -119,6 +142,10 @@ export default function ProfessionalLicenseApplyPage() {
       }
 
       console.log("[v0] Professional application submitted:", application)
+      toast({
+        title: "your application is submitted succesfully",
+        description: "",
+      })
       router.push("/dashboard/applications")
     } catch (err: any) {
       let message = err?.message || "Failed to submit application"
