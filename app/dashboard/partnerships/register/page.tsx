@@ -12,9 +12,11 @@ import { PartnershipStep2 } from "@/components/partnerships/step2-partners"
 import { PartnershipStep3 } from "@/components/partnerships/step3-documents"
 import { PartnershipStep4 } from "@/components/partnerships/step4-review"
 import { partnershipsApi } from "@/lib/api/django-client"
+import { useToast } from "@/hooks/use-toast"
 
 export default function RegisterPartnershipPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState({
     partnershipName: "",
@@ -150,6 +152,10 @@ export default function RegisterPartnershipPage() {
       }
 
       console.log("[v0] Partnership registered:", partnership)
+      toast({
+        title: "succefully registered",
+        description: "",
+      })
       router.push("/dashboard/partnerships")
     } catch (err: any) {
       console.error("[v0] Submit error:", err)
