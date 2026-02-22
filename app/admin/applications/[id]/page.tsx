@@ -691,26 +691,7 @@ export default function ApplicationReview({
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Tools</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleDownloadApplicationPDF}
-                  disabled={isDownloading}
-                >
-                  {isDownloading ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Download className="w-4 h-4 mr-2" />
-                  )}
-                  Download Summary PDF
-                </Button>
-              </CardContent>
-            </Card>
+       
           </div>
         </div>
       </main>
