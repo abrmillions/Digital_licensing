@@ -116,8 +116,8 @@ export default function RegisterVehiclePage() {
       } catch {}
 
       toast({
-        title: "Success",
-        description: "Vehicle registered successfully.",
+        title: "succefully registered",
+        description: "",
       })
       router.push("/dashboard/vehicles")
     } catch (error) {
@@ -373,7 +373,7 @@ export default function RegisterVehiclePage() {
                 <Card key={doc.key}>
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                      <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
                         {uploadedFiles[doc.key] ? (
                           <CheckCircle2 className="w-6 h-6 text-accent" />
                         ) : (
