@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
-import { Building2, ArrowLeft, Save, Bell, Shield, Database, Mail } from "lucide-react"
+import { Building2, ArrowLeft, Save, Bell, Shield, Database, Mail, Pencil } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { settingsApi } from "@/lib/api/django-client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -21,6 +21,7 @@ export default function SystemSettings() {
   const [maintenanceMode, setMaintenanceMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [docVerificationEnabled, setDocVerificationEnabled] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
   const [settings, setSettings] = useState({
     systemName: "",
     supportEmail: "",
@@ -118,6 +119,7 @@ export default function SystemSettings() {
         title: "changes system settings succesfully",
         description: "",
       })
+      setIsEditing(false)
     } catch (error) {
       toast({
         title: "Error",
@@ -182,6 +184,7 @@ export default function SystemSettings() {
                     id="system-name"
                     value={settings.systemName}
                     onChange={(e) => updateSetting("systemName", e.target.value)}
+                    disabled={!isEditing}
                   />
                 </div>
 
@@ -192,6 +195,7 @@ export default function SystemSettings() {
                     type="email"
                     value={settings.supportEmail}
                     onChange={(e) => updateSetting("supportEmail", e.target.value)}
+                    disabled={!isEditing}
                   />
                 </div>
 
@@ -202,6 +206,7 @@ export default function SystemSettings() {
                     type="tel"
                     value={settings.supportPhone}
                     onChange={(e) => updateSetting("supportPhone", e.target.value)}
+                    disabled={!isEditing}
                   />
                 </div>
 
@@ -210,7 +215,7 @@ export default function SystemSettings() {
                     <Label>Enable Document Verification</Label>
                     <p className="text-sm text-slate-500">Show Verify Documents button in application review</p>
                   </div>
-                  <Switch checked={docVerificationEnabled} onCheckedChange={setDocVerificationEnabled} />
+                  <Switch checked={docVerificationEnabled} onCheckedChange={setDocVerificationEnabled} disabled={!isEditing} />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -218,7 +223,7 @@ export default function SystemSettings() {
                     <Label>Maintenance Mode</Label>
                     <p className="text-sm text-slate-500">Disable public access for maintenance</p>
                   </div>
-                  <Switch checked={maintenanceMode} onCheckedChange={setMaintenanceMode} />
+                  <Switch checked={maintenanceMode} onCheckedChange={setMaintenanceMode} disabled={!isEditing} />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -226,13 +231,19 @@ export default function SystemSettings() {
                     <Label>Auto-Approval for Renewals</Label>
                     <p className="text-sm text-slate-500">Automatically approve license renewals</p>
                   </div>
-                  <Switch checked={autoApproval} onCheckedChange={setAutoApproval} />
+                  <Switch checked={autoApproval} onCheckedChange={setAutoApproval} disabled={!isEditing} />
                 </div>
 
-                <Button onClick={handleSave} disabled={isSaving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {isSaving ? "Saving..." : "Save Changes"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setIsEditing((v) => !v)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    {isEditing ? "Stop Editing" : "Edit"}
+                  </Button>
+                  <Button onClick={handleSave} disabled={isSaving || !isEditing}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {isSaving ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -252,7 +263,7 @@ export default function SystemSettings() {
                     <Label>Email Notifications</Label>
                     <p className="text-sm text-slate-500">Send email alerts for application updates</p>
                   </div>
-                  <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
+                  <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} disabled={!isEditing} />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -260,7 +271,7 @@ export default function SystemSettings() {
                     <Label>SMS Notifications</Label>
                     <p className="text-sm text-slate-500">Send SMS alerts for urgent updates</p>
                   </div>
-                  <Switch checked={smsNotifications} onCheckedChange={setSmsNotifications} />
+                  <Switch checked={smsNotifications} onCheckedChange={setSmsNotifications} disabled={!isEditing} />
                 </div>
 
                 <div className="space-y-2">
@@ -270,13 +281,20 @@ export default function SystemSettings() {
                     rows={6}
                     value={settings.notificationTemplate}
                     onChange={(e) => updateSetting("notificationTemplate", e.target.value)}
+                    disabled={!isEditing}
                   />
                 </div>
 
-                <Button onClick={handleSave} disabled={isSaving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {isSaving ? "Saving..." : "Save Changes"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setIsEditing((v) => !v)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    {isEditing ? "Stop Editing" : "Edit"}
+                  </Button>
+                  <Button onClick={handleSave} disabled={isSaving || !isEditing}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {isSaving ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -301,6 +319,7 @@ export default function SystemSettings() {
                       const n = Number.parseInt(e.target.value, 10)
                       updateSetting("sessionTimeout", Number.isNaN(n) ? 0 : n)
                     }}
+                    disabled={!isEditing}
                   />
                 </div>
 
@@ -314,6 +333,7 @@ export default function SystemSettings() {
                       const n = Number.parseInt(e.target.value, 10)
                       updateSetting("maxLoginAttempts", Number.isNaN(n) ? 0 : n)
                     }}
+                    disabled={!isEditing}
                   />
                 </div>
 
@@ -327,6 +347,7 @@ export default function SystemSettings() {
                       const n = Number.parseInt(e.target.value, 10)
                       updateSetting("passwordMinLength", Number.isNaN(n) ? 0 : n)
                     }}
+                    disabled={!isEditing}
                   />
                 </div>
 
@@ -335,7 +356,7 @@ export default function SystemSettings() {
                     <Label>Two-Factor Authentication</Label>
                     <p className="text-sm text-slate-500">Require 2FA for admin accounts</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch defaultChecked disabled={!isEditing} />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -343,13 +364,19 @@ export default function SystemSettings() {
                     <Label>IP Whitelist</Label>
                     <p className="text-sm text-slate-500">Restrict admin access to specific IPs</p>
                   </div>
-                  <Switch />
+                  <Switch disabled={!isEditing} />
                 </div>
 
-                <Button onClick={handleSave} disabled={isSaving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {isSaving ? "Saving..." : "Save Changes"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setIsEditing((v) => !v)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    {isEditing ? "Stop Editing" : "Edit"}
+                  </Button>
+                  <Button onClick={handleSave} disabled={isSaving || !isEditing}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {isSaving ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -370,6 +397,7 @@ export default function SystemSettings() {
                     id="smtp-host"
                     value={settings.smtpHost}
                     onChange={(e) => updateSetting("smtpHost", e.target.value)}
+                    disabled={!isEditing}
                   />
                 </div>
 
@@ -383,6 +411,7 @@ export default function SystemSettings() {
                       const n = Number.parseInt(e.target.value, 10)
                       updateSetting("smtpPort", Number.isNaN(n) ? 0 : n)
                     }}
+                    disabled={!isEditing}
                   />
                 </div>
 
@@ -392,6 +421,7 @@ export default function SystemSettings() {
                     id="smtp-user"
                     value={settings.smtpUser}
                     onChange={(e) => updateSetting("smtpUser", e.target.value)}
+                    disabled={!isEditing}
                   />
                 </div>
 
@@ -403,6 +433,7 @@ export default function SystemSettings() {
                     value={settings.smtpPassword}
                     onChange={(e) => updateSetting("smtpPassword", e.target.value)}
                     placeholder="••••••••"
+                    disabled={!isEditing}
                   />
                 </div>
 
@@ -411,13 +442,19 @@ export default function SystemSettings() {
                     <Label>Use TLS</Label>
                     <p className="text-sm text-slate-500">Enable TLS encryption</p>
                   </div>
-                  <Switch checked={settings.useTls} onCheckedChange={(checked) => updateSetting("useTls", checked)} />
+                  <Switch checked={settings.useTls} onCheckedChange={(checked) => updateSetting("useTls", checked)} disabled={!isEditing} />
                 </div>
 
-                <Button onClick={handleSave} disabled={isSaving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {isSaving ? "Saving..." : "Save Changes"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setIsEditing((v) => !v)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    {isEditing ? "Stop Editing" : "Edit"}
+                  </Button>
+                  <Button onClick={handleSave} disabled={isSaving || !isEditing}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {isSaving ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
