@@ -88,7 +88,7 @@ export function ContractorStep1({ data, updateData, onNext }: Step1Props) {
 
       <div className="border-t pt-6">
         <PhotoUpload
-          label="Profile Photo"
+          label="Enter Your 4x4 size  Photo"
           required={true}
           onPhotoUpload={handlePhotoUpload}
           photoUrl={typeof data.profile_photo === 'string' ? data.profile_photo : undefined}
