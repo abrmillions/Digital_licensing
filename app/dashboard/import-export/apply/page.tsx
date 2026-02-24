@@ -105,18 +105,10 @@ export default function ImportExportApplyPage() {
       const appId = String(application?.id || "")
       const docs = formData.documents || {}
       // Upload remaining documents; tolerate backend refusing specific POSTs
-      const docLabels: Record<string, string> = {
-        companyPhoto: "Company Logo/Photo",
-        companyRegistration: "Company Registration Certificate",
-        taxCertificate: "Tax Registration Certificate",
-        customsLicense: "Customs License/Authorization",
-        itemSpecifications: "Item Specifications & Catalogs",
-        proformaInvoice: "Proforma Invoice",
-      }
       for (const [k, v] of Object.entries(docs)) {
         if (v instanceof File) {
           try {
-            await documentsApi.upload(v, appId, undefined, docLabels[k] || k)
+            await documentsApi.upload(v, appId)
           } catch (e) {
             console.error(`[v0] Document upload failed for ${k}`, e)
           }
