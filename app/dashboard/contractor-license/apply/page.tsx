@@ -117,10 +117,17 @@ export default function ContractorLicenseApplyPage() {
       const application = await applicationsApi.create(payload)
       const appId = String(application?.id || "")
       const docs = (formData as any).documents || {}
+      const docLabels: Record<string, string> = {
+        nationalIdCopy: "National ID Copy",
+        companyRegistration: "Company Registration Certificate",
+        taxCertificate: "Tax Registration Certificate",
+        experienceCertificate: "Experience Certificates",
+        financialStatement: "Financial Statement (Last 2 years)",
+      }
       for (const [k, v] of Object.entries(docs)) {
         if (v instanceof File) {
           try {
-            await documentsApi.upload(v, appId)
+            await documentsApi.upload(v, appId, undefined, docLabels[k] || k)
           } catch (e) {
             console.error(`[v0] Document upload failed for ${k}`, e)
           }
