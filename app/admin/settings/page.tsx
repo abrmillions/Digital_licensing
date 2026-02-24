@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -16,14 +15,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function SystemSettings() {
   const { toast } = useToast()
+  interface Settings {
+    systemName: string
+    supportEmail: string
+    supportPhone: string
+    sessionTimeout: number
+    maxLoginAttempts: number
+    passwordMinLength: number
+    smtpHost: string
+    smtpPort: number
+    smtpUser: string
+    smtpPassword: string
+    useTls: boolean
+    notificationTemplate: string
+  }
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [smsNotifications, setSmsNotifications] = useState(false)
   const [autoApproval, setAutoApproval] = useState(false)
   const [maintenanceMode, setMaintenanceMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [docVerificationEnabled, setDocVerificationEnabled] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  const [settings, setSettings] = useState({
+  const [docVerificationEnabled, setDocVerificationEnabled] = useState(false)
+  const [settings, setSettings] = useState<Settings>({
     systemName: "",
     supportEmail: "",
     supportPhone: "",
@@ -37,6 +50,18 @@ export default function SystemSettings() {
     useTls: true,
     notificationTemplate: "",
   })
+
+  const onText =
+    <K extends keyof Settings>(key: K) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      updateSetting(key, e.target.value as Settings[K])
+
+  const onNumber =
+    <K extends keyof Settings>(key: K) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const n = Number.parseInt(e.target.value, 10)
+      updateSetting(key, (Number.isNaN(n) ? 0 : n) as Settings[K])
+    }
 
   useEffect(() => {
     (async () => {
@@ -132,12 +157,12 @@ export default function SystemSettings() {
     }
   }
 
-  const updateSetting = (key: string, value: any) => {
+  const updateSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }))
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100">
       <header className="border-b bg-white">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -184,7 +209,7 @@ export default function SystemSettings() {
                   <Input
                     id="system-name"
                     value={settings.systemName}
-                    onChange={(e) => updateSetting("systemName", e.target.value)}
+                    onChange={onText("systemName")}
                     disabled={!isEditing}
                   />
                 </div>
@@ -195,7 +220,7 @@ export default function SystemSettings() {
                     id="support-email"
                     type="email"
                     value={settings.supportEmail}
-                    onChange={(e) => updateSetting("supportEmail", e.target.value)}
+                    onChange={onText("supportEmail")}
                     disabled={!isEditing}
                   />
                 </div>
@@ -206,7 +231,7 @@ export default function SystemSettings() {
                     id="support-phone"
                     type="tel"
                     value={settings.supportPhone}
-                    onChange={(e) => updateSetting("supportPhone", e.target.value)}
+                    onChange={onText("supportPhone")}
                     disabled={!isEditing}
                   />
                 </div>
@@ -234,13 +259,12 @@ export default function SystemSettings() {
                   </div>
                   <Switch checked={autoApproval} onCheckedChange={setAutoApproval} disabled={!isEditing} />
                 </div>
-
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setIsEditing((v) => !v)}>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => setIsEditing(true)} disabled={isEditing}>
                     <Pencil className="h-4 w-4 mr-2" />
-                    {isEditing ? "Stop Editing" : "Edit"}
+                    Edit
                   </Button>
-                  <Button onClick={handleSave} disabled={isSaving || !isEditing}>
+                  <Button onClick={handleSave} disabled={!isEditing || isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
@@ -281,17 +305,16 @@ export default function SystemSettings() {
                     id="notification-template"
                     rows={6}
                     value={settings.notificationTemplate}
-                    onChange={(e) => updateSetting("notificationTemplate", e.target.value)}
+                    onChange={onText("notificationTemplate")}
                     disabled={!isEditing}
                   />
                 </div>
-
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setIsEditing((v) => !v)}>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => setIsEditing(true)} disabled={isEditing}>
                     <Pencil className="h-4 w-4 mr-2" />
-                    {isEditing ? "Stop Editing" : "Edit"}
+                    Edit
                   </Button>
-                  <Button onClick={handleSave} disabled={isSaving || !isEditing}>
+                  <Button onClick={handleSave} disabled={!isEditing || isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
@@ -316,10 +339,7 @@ export default function SystemSettings() {
                     id="session-timeout"
                     type="number"
                     value={settings.sessionTimeout}
-                    onChange={(e) => {
-                      const n = Number.parseInt(e.target.value, 10)
-                      updateSetting("sessionTimeout", Number.isNaN(n) ? 0 : n)
-                    }}
+                    onChange={onNumber("sessionTimeout")}
                     disabled={!isEditing}
                   />
                 </div>
@@ -330,10 +350,7 @@ export default function SystemSettings() {
                     id="max-login-attempts"
                     type="number"
                     value={settings.maxLoginAttempts}
-                    onChange={(e) => {
-                      const n = Number.parseInt(e.target.value, 10)
-                      updateSetting("maxLoginAttempts", Number.isNaN(n) ? 0 : n)
-                    }}
+                    onChange={onNumber("maxLoginAttempts")}
                     disabled={!isEditing}
                   />
                 </div>
@@ -344,10 +361,7 @@ export default function SystemSettings() {
                     id="password-min-length"
                     type="number"
                     value={settings.passwordMinLength}
-                    onChange={(e) => {
-                      const n = Number.parseInt(e.target.value, 10)
-                      updateSetting("passwordMinLength", Number.isNaN(n) ? 0 : n)
-                    }}
+                    onChange={onNumber("passwordMinLength")}
                     disabled={!isEditing}
                   />
                 </div>
@@ -367,13 +381,12 @@ export default function SystemSettings() {
                   </div>
                   <Switch disabled={!isEditing} />
                 </div>
-
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setIsEditing((v) => !v)}>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => setIsEditing(true)} disabled={isEditing}>
                     <Pencil className="h-4 w-4 mr-2" />
-                    {isEditing ? "Stop Editing" : "Edit"}
+                    Edit
                   </Button>
-                  <Button onClick={handleSave} disabled={isSaving || !isEditing}>
+                  <Button onClick={handleSave} disabled={!isEditing || isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
@@ -397,7 +410,7 @@ export default function SystemSettings() {
                   <Input
                     id="smtp-host"
                     value={settings.smtpHost}
-                    onChange={(e) => updateSetting("smtpHost", e.target.value)}
+                    onChange={onText("smtpHost")}
                     disabled={!isEditing}
                   />
                 </div>
@@ -408,10 +421,7 @@ export default function SystemSettings() {
                     id="smtp-port"
                     type="number"
                     value={settings.smtpPort}
-                    onChange={(e) => {
-                      const n = Number.parseInt(e.target.value, 10)
-                      updateSetting("smtpPort", Number.isNaN(n) ? 0 : n)
-                    }}
+                    onChange={onNumber("smtpPort")}
                     disabled={!isEditing}
                   />
                 </div>
@@ -421,7 +431,7 @@ export default function SystemSettings() {
                   <Input
                     id="smtp-user"
                     value={settings.smtpUser}
-                    onChange={(e) => updateSetting("smtpUser", e.target.value)}
+                    onChange={onText("smtpUser")}
                     disabled={!isEditing}
                   />
                 </div>
@@ -432,7 +442,7 @@ export default function SystemSettings() {
                     id="smtp-pass"
                     type="password"
                     value={settings.smtpPassword}
-                    onChange={(e) => updateSetting("smtpPassword", e.target.value)}
+                    onChange={onText("smtpPassword")}
                     placeholder="••••••••"
                     disabled={!isEditing}
                   />
@@ -445,13 +455,12 @@ export default function SystemSettings() {
                   </div>
                   <Switch checked={settings.useTls} onCheckedChange={(checked) => updateSetting("useTls", checked)} disabled={!isEditing} />
                 </div>
-
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setIsEditing((v) => !v)}>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => setIsEditing(true)} disabled={isEditing}>
                     <Pencil className="h-4 w-4 mr-2" />
-                    {isEditing ? "Stop Editing" : "Edit"}
+                    Edit
                   </Button>
-                  <Button onClick={handleSave} disabled={isSaving || !isEditing}>
+                  <Button onClick={handleSave} disabled={!isEditing || isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
