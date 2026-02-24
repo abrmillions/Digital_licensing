@@ -126,11 +126,19 @@ export default function ProfessionalLicenseApplyPage() {
         if (appId) {
           const docs = formData.documents || {}
           const keys = Object.keys(docs)
+          const docLabels: Record<string, string> = {
+            nationalIdCopy: "National ID Copy",
+            degreeCertificate: "Degree Certificate",
+            transcripts: "Academic Transcripts",
+            experienceLetter: "Experience/Employment Letter",
+            professionalPhoto: "Professional Passport Photo",
+            previousLicense: "Previous License (if applicable)",
+          }
           for (const k of keys) {
             const v: any = (docs as any)[k]
             if (v instanceof File) {
               try {
-                await (await import('@/lib/api/django-client')).documentsApi.upload(v, appId)
+                await (await import('@/lib/api/django-client')).documentsApi.upload(v, appId, undefined, docLabels[k] || k)
               } catch (e) {
                 /* continue uploading other files */
               }
