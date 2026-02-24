@@ -101,7 +101,7 @@ export function ProfessionalStep1({ data, updateData, onNext }: Step1Props) {
 
       <div className="border-t pt-6">
         <PhotoUpload
-          label="Professional Photo"
+          label="Enter Your 4x4 size  Photo""
           required={true}
           onPhotoUpload={handlePhotoUpload}
           photoUrl={typeof data.professional_photo === 'string' ? data.professional_photo : undefined}
