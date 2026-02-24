@@ -112,7 +112,7 @@ export function ImportExportStep1({ data, updateData, onNext }: Step1Props) {
 
       <div className="border-t pt-6">
         <PhotoUpload
-          label="Company Representative Photo"
+          label="Enter Your 4x4 size  Photo/Company Representative Photo"
           required={true}
           onPhotoUpload={handlePhotoUpload}
           photoUrl={typeof data.company_representative_photo === 'string' ? data.company_representative_photo : undefined}
