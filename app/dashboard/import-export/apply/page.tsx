@@ -15,28 +15,27 @@ import { ImportExportStep5 } from "@/components/licenses/import-export/step5-rev
 import { applicationsApi, documentsApi } from "@/lib/api/django-client"
 import { useToast } from "@/hooks/use-toast"
 
-type ImportExportFormData = {
-  companyName: string
-  registrationNumber: string
-  taxId: string
-  address: string
-  contactPerson: string
-  email: string
-  phone: string
-  permitType: string
-  duration: string
-  customsOffice: string
-  purposeOfImport: string
-  items: any[]
-  company_representative_photo: File | null
-  documents: Record<string, File | null>
-}
-
 export default function ImportExportApplyPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<ImportExportFormData>({
+  type FormDataType = {
+    companyName: string
+    registrationNumber: string
+    taxId: string
+    address: string
+    contactPerson: string
+    email: string
+    phone: string
+    permitType: string
+    duration: string
+    customsOffice: string
+    purposeOfImport: string
+    items: any[]
+    company_representative_photo: File | null
+    documents: Record<string, File | null>
+  }
+  const [formData, setFormData] = useState<FormDataType>({
     // Company Info
     companyName: "",
     registrationNumber: "",
@@ -98,7 +97,7 @@ export default function ImportExportApplyPage() {
         license_type: "Import/Export License",
         data: { ...formData, company_representative_photo: undefined },
       }
-      if (formData.company_representative_photo instanceof File) {
+      if (formData.company_representative_photo && formData.company_representative_photo instanceof File) {
         payload.company_representative_photo = formData.company_representative_photo
       }
       const application = await applicationsApi.create(payload)
@@ -106,7 +105,7 @@ export default function ImportExportApplyPage() {
       const docs = formData.documents || {}
       // Upload remaining documents; tolerate backend refusing specific POSTs
       for (const [k, v] of Object.entries(docs)) {
-        if (v instanceof File) {
+        if (v && (v as File) instanceof File) {
           try {
             await documentsApi.upload(v, appId)
           } catch (e) {
