@@ -142,7 +142,13 @@ export default function VerifyPage() {
           found: false,
           data: null,
         })
-        setError(error?.message || 'An error occurred during verification.')
+        const friendly =
+          (error?.error && error.error.detail) ||
+          (error?.message && /api error:\s*404/i.test(String(error.message)) ? 'The license number you entered was not found in the database.' : '') ||
+          (error?.message && /401/.test(String(error.message)) ? 'Please sign in to access private license data.' : '') ||
+          (error?.message && /network error/i.test(String(error.message)) ? 'Network error: could not reach verification service.' : '') ||
+          (error?.message || '')
+        setError(friendly || 'An error occurred during verification.')
       }
     } finally {
       setIsSearching(false)
