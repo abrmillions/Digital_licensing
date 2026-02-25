@@ -374,7 +374,7 @@ export default function VerifyPage() {
                   </div>
 
                   <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
                     <div>
                       <p className="text-sm font-medium text-foreground">License is valid and verified</p>
                       <p className="text-xs text-muted-foreground mt-1">
