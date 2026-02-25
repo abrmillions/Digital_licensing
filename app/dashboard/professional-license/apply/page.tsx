@@ -15,34 +15,33 @@ import { ProfessionalStep5 } from "@/components/licenses/professional/step5-revi
 import { applicationsApi } from "@/lib/api/django-client"
 import { useToast } from "@/hooks/use-toast"
 
-type ProfessionalFormData = {
-  fullName: string
-  email: string
-  phone: string
-  nationalId: string
-  dateOfBirth: string
-  address: string
-  profession: string
-  specialization: string
-  degree: string
-  university: string
-  graduationYear: string
-  licenseNumber: string
-  yearsOfExperience: string
-  currentEmployer: string
-  position: string
-  projects: any[]
-  professional_photo: File | null
-  documents: Record<string, File | null>
-}
-
 export default function ProfessionalLicenseApplyPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [error, setError] = useState("")
   const [canApply, setCanApply] = useState(true)
-  const [formData, setFormData] = useState<ProfessionalFormData>({
+  type FormDataType = {
+    fullName: string
+    email: string
+    phone: string
+    nationalId: string
+    dateOfBirth: string
+    address: string
+    profession: string
+    specialization: string
+    degree: string
+    university: string
+    graduationYear: string
+    licenseNumber: string
+    yearsOfExperience: string
+    currentEmployer: string
+    position: string
+    projects: any[]
+    professional_photo: File | null
+    documents: Record<string, File | null>
+  }
+  const [formData, setFormData] = useState<FormDataType>({
     // Personal Info
     fullName: "",
     email: "",
@@ -116,7 +115,7 @@ export default function ProfessionalLicenseApplyPage() {
         license_type: "Professional License",
         data: { ...formData, professional_photo: undefined },
       }
-      if (formData.professional_photo instanceof File) {
+      if (formData.professional_photo && formData.professional_photo instanceof File) {
         payload.professional_photo = formData.professional_photo
       }
       const application = await applicationsApi.create(payload)
@@ -128,7 +127,7 @@ export default function ProfessionalLicenseApplyPage() {
           const keys = Object.keys(docs)
           for (const k of keys) {
             const v: any = (docs as any)[k]
-            if (v instanceof File) {
+            if (v && (v as File) instanceof File) {
               try {
                 await (await import('@/lib/api/django-client')).documentsApi.upload(v, appId)
               } catch (e) {
