@@ -1,0 +1,190 @@
+import { NextResponse } from "next/server";
+import { DJANGO_API_URL } from "@/lib/config/django-api";
+
+async function copyHeadersToObject(headers: Headers) {
+  const out: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    out[key] = value;
+  });
+  return out;
+}
+
+export async function proxyToDjango(request: Request, djangoPath: string) {
+  // Build target URL preserving query string
+  const incomingUrl = new URL(request.url);
+  
+  // Use the djangoPath as-is. Since it starts with '/api/', and DJANGO_API_URL
+  // is the base (e.g. http://127.0.0.1:8000), the resulting URL will be
+  // http://127.0.0.1:8000/api/... which matches the Django backend routing.
+  const targetUrl = new URL(djangoPath, DJANGO_API_URL);
+  targetUrl.search = incomingUrl.search;
+
+  // Logging: incoming request summary
+  try {
+    // eslint-disable-next-line no-console
+    console.debug(
+      "[proxy] Incoming",
+      request.method,
+      incomingUrl.pathname + incomingUrl.search,
+    );
+    const headerObj: Record<string, string> = {};
+    for (const [k, v] of request.headers) headerObj[k] = v;
+    // eslint-disable-next-line no-console
+    console.debug("[proxy] Incoming headers", headerObj);
+  } catch (e) {
+    /* ignore logging errors */
+  }
+
+  const forwardHeaders: Record<string, string> = {};
+  // copy headers, but let fetch set host
+  for (const [k, v] of request.headers) {
+    if (k.toLowerCase() === "host") continue;
+    forwardHeaders[k] = v;
+  }
+
+  const method = (request.method || "GET").toUpperCase();
+  const hasBody = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
+  const init: RequestInit = {
+    method: request.method,
+    headers: forwardHeaders,
+    redirect: "manual",
+  };
+
+  if (hasBody) {
+    // stream the body
+    const buf = await request.arrayBuffer().catch(() => null);
+    if (buf) {
+      init.body = buf;
+      try {
+        // log body size and a short preview (if text)
+        const textPreview = new TextDecoder().decode(buf.slice(0, 1024));
+        // eslint-disable-next-line no-console
+        console.debug("[proxy] Forwarding body (bytes):", buf.byteLength);
+        // eslint-disable-next-line no-console
+        console.debug("[proxy] Body preview:", textPreview);
+      } catch (_) {
+        // ignore decode errors
+      }
+    }
+  }
+
+  // eslint-disable-next-line no-console
+  console.debug("[proxy] Forwarding to", targetUrl.toString());
+
+  let res: Response;
+  try {
+    res = await fetch(targetUrl.toString(), init);
+  } catch (e: any) {
+    try {
+      console.error("[proxy] Backend fetch failed:", e?.message || e);
+    } catch {}
+    return new NextResponse(
+      JSON.stringify({
+        error: "backend_unreachable",
+        detail:
+          `Could not reach backend at ${new URL(DJANGO_API_URL).origin}. Ensure the Django server is running.`,
+      }),
+      {
+        status: 502,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  const bodyBuffer = await res.arrayBuffer().catch(() => new ArrayBuffer(0));
+  const respHeaders = await copyHeadersToObject(res.headers);
+
+  // If Django returns a redirect, rewrite the Location header to point back to the proxy
+  if (res.status >= 300 && res.status < 400 && respHeaders["location"]) {
+    try {
+      const locationUrl = new URL(respHeaders["location"]);
+      const djangoOrigin = new URL(DJANGO_API_URL).origin;
+      const incomingOrigin = new URL(request.url).origin;
+      
+      if (locationUrl.origin === djangoOrigin) {
+        // Rewrite to same-origin proxy path
+        const newLocation = locationUrl.pathname + locationUrl.search;
+        
+        // CRITICAL: Prevent infinite redirect loops if Django redirects to EXACTLY what we just requested
+        const incomingPath = new URL(request.url).pathname;
+        if (newLocation === incomingPath) {
+            // eslint-disable-next-line no-console
+            console.error("[proxy] Infinite circular redirect detected from Django!", {
+                path: incomingPath,
+                djangoLocation: respHeaders["location"]
+            });
+            return new NextResponse(JSON.stringify({ error: "Circular redirect detected", detail: `Django redirected ${incomingPath} to itself` }), {
+                status: 500,
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+
+        // eslint-disable-next-line no-console
+        console.debug("[proxy] Rewriting redirect Location header:", respHeaders["location"], "->", newLocation);
+        respHeaders["location"] = newLocation;
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  // Try to decode body for logging and to ensure content-type
+  let bodyText = "";
+  try {
+    bodyText = new TextDecoder().decode(bodyBuffer);
+  } catch (e) {
+    bodyText = "";
+  }
+
+  // Remove hop-by-hop and content-encoding headers to avoid double-decompression in the browser
+  const forbidden = [
+    "transfer-encoding",
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "content-encoding",
+  ];
+  for (const h of forbidden) {
+    if (respHeaders[h]) delete respHeaders[h];
+  }
+
+  // Ensure content-type for JSON payloads so client.json() parses correctly
+  if (
+    (!respHeaders["content-type"] ||
+      respHeaders["content-type"].trim() === "") &&
+    bodyText.trim().startsWith("{")
+  ) {
+    respHeaders["content-type"] = "application/json; charset=utf-8";
+  }
+
+  // Ensure content-length is accurate
+  try {
+    respHeaders["content-length"] = String(
+      (bodyBuffer && bodyBuffer.byteLength) || 0,
+    );
+  } catch (e) {
+    /* ignore */
+  }
+
+  // eslint-disable-next-line no-console
+  console.debug("[proxy] Received from Django", {
+    status: res.status,
+    headers: respHeaders,
+    bodyText: bodyText.slice(0, 2000),
+  });
+
+  // Handle "null body" status codes (101, 204, 205, 304) which MUST NOT have a body 
+  // in the Response constructor, otherwise it throws a TypeError.
+  const nullBodyStatuses = [101, 204, 205, 304];
+  const responseBody = nullBodyStatuses.includes(res.status) ? null : new Uint8Array(bodyBuffer);
+
+  return new NextResponse(responseBody, {
+    status: res.status,
+    headers: respHeaders,
+  });
+}
+
+export default proxyToDjango;
